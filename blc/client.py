@@ -1,7 +1,7 @@
 import socket
 
 client = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-client.connect(("<MAC address of the PC you are connecting to>", 4))
+client.connect(("1c:ce:51:3e:a2:b4", 4))
 
 print(f"Connected!")
 

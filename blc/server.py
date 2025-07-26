@@ -6,7 +6,7 @@ import socket
 # 3. Turn on Bluetooth on both devices and make server device visible
 
 server = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)  # RFCOMM specific protocol
-server.bind(("<your BT adapter MAC address>", 4))  # MAC Address and Channel 4
+server.bind(("1c:ce:51:3e:a2:b4", 4))  # MAC Address and Channel 4 #28:d0:43:51:e4:4b
 server.listen(1)
 
 print("Waiting for connection...")
