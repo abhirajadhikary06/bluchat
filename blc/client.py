@@ -1,44 +1,69 @@
 import asyncio
+import argparse
 import json
 import datetime
-from bleak import BleakScanner, BleakClient
+from bleak import BleakClient
 from storage import load_history, save_message
 
-CHAT_CHAR_UUID = "0000xxxx-0000-1000-8000-00805f9b34fb"  # define a custom UUID
+# Replace with your characteristic UUID (must match server setup)
+CHAT_CHAR_UUID = "0000xxxx-0000-1000-8000-00805f9b34fb"
 
-async def run_chat():
-    print("Scanning for devices...")
-    devices = await BleakScanner.discover()
-    for i, d in enumerate(devices):
-        print(f"{i}: {d.name} [{d.address}]")
-    idx = int(input("Select device index to chat with: "))
-    peer = devices[idx]
-    print(f"Connecting to {peer.address}...")
-    async with BleakClient(peer.address) as client:
+def get_args():
+    parser = argparse.ArgumentParser(description="Bluetooth Chat Client")
+    parser.add_argument("--addr", type=str, help="Bluetooth MAC address of peer device")
+    return parser.parse_args()
+
+async def run_chat(address):
+    print(f"Connecting to {address}...")
+    async with BleakClient(address) as client:
         if not await client.is_connected():
             print("Failed to connect")
             return
-        print("Connected")
-        history = load_history(peer.address)
-        for entry in history:
-            ts = entry["timestamp"]
-            print(f"{entry['direction']} [{ts}] {entry['message']}")
+
+        print("Connected to", address)
+
+        history = load_history(address)
+        if history:
+            print("\n--- Chat History ---")
+            for entry in history:
+                ts = entry["timestamp"]
+                print(f"{entry['direction']} [{ts}]: {entry['message']}")
+            print("--------------------\n")
+
         def notification_handler(sender, data):
-            text = data.decode('utf‑8')
-            ts = datetime.datetime.now().isoformat()
+            text = data.decode("utf-8")
+            ts = datetime.datetime.now().isoformat(timespec="seconds")
             print(f"\rPeer [{ts}]: {text}\n> ", end="", flush=True)
-            save_message(peer.address, {"direction": "recv", "timestamp": ts, "message": text})
+            save_message(address, {
+                "direction": "recv",
+                "timestamp": ts,
+                "message": text
+            })
 
         await client.start_notify(CHAT_CHAR_UUID, notification_handler)
 
-        while True:
-            msg = input("> ")
-            if msg.lower() in ("exit", "quit"):
-                break
-            ts = datetime.datetime.now().isoformat()
-            await client.write_gatt_char(CHAT_CHAR_UUID, msg.encode('utf‑8'))
-            save_message(peer.address, {"direction": "sent", "timestamp": ts, "message": msg})
-        await client.stop_notify(CHAT_CHAR_UUID)
+        try:
+            while True:
+                msg = input("> ")
+                if msg.lower() in ("exit", "quit"):
+                    break
+                ts = datetime.datetime.now().isoformat(timespec="seconds")
+                await client.write_gatt_char(CHAT_CHAR_UUID, msg.encode("utf-8"))
+                save_message(address, {
+                    "direction": "sent",
+                    "timestamp": ts,
+                    "message": msg
+                })
+        except KeyboardInterrupt:
+            print("\nDisconnected.")
+        finally:
+            await client.stop_notify(CHAT_CHAR_UUID)
 
 if __name__ == "__main__":
-    asyncio.run(run_chat())
+    args = get_args()
+    if args.addr:
+        mac_address = args.addr
+    else:
+        mac_address = input("Enter the Bluetooth MAC address of the peer device: ").strip()
+
+    asyncio.run(run_chat(mac_address))
