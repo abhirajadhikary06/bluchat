@@ -1,43 +1,17 @@
 import json
-import os
+from pathlib import Path
 
-class ChatStorage:
-    def __init__(self, filename):
-        self.filename = filename
-        if not os.path.exists(filename):
-            with open(filename, "w") as f:
-                json.dump({"nickname": "", "chats": {}}, f)
+STORAGE_DIR = Path("chats")
+STORAGE_DIR.mkdir(exist_ok=True)
 
-    def load_nickname(self):
-        with open(self.filename, "r") as f:
-            data = json.load(f)
-        return data.get("nickname", "")
+def load_history(peer_addr):
+    path = STORAGE_DIR / f"{peer_addr}.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    return []
 
-    def save_nickname(self, nickname):
-        with open(self.filename, "r") as f:
-            data = json.load(f)
-        data["nickname"] = nickname
-        with open(self.filename, "w") as f:
-            json.dump(data, f)
-
-    def load_messages(self, device_id):
-        with open(self.filename, "r") as f:
-            data = json.load(f)
-        return data.get("chats", {}).get(device_id, [])
-
-    def save_message(self, device_id, message):
-        with open(self.filename, "r") as f:
-            data = json.load(f)
-        if device_id not in data.get("chats", {}):
-            data["chats"][device_id] = []
-        data["chats"][device_id].append(message)
-        with open(self.filename, "w") as f:
-            json.dump(data, f)
-
-    def clear_messages(self, device_id):
-        with open(self.filename, "r") as f:
-            data = json.load(f)
-        if device_id in data.get("chats", {}):
-            data["chats"][device_id] = []
-        with open(self.filename, "w") as f:
-            json.dump(data, f)
+def save_message(peer_addr, message_entry):
+    history = load_history(peer_addr)
+    history.append(message_entry)
+    path = STORAGE_DIR / f"{peer_addr}.json"
+    path.write_text(json.dumps(history, ensure_ascii=False, indent=2))
