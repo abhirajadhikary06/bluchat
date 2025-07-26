@@ -4,6 +4,7 @@ import ttkbootstrap as ttkb
 from ttkbootstrap.constants import *
 import emoji
 import asyncio
+import threading
 from ttkbootstrap.style import Style
 
 class BluetoothChatGUI:
@@ -16,7 +17,8 @@ class BluetoothChatGUI:
         self.root.geometry("1000x700")
         self.device_id = None
         self.is_typing = False
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.new_event_loop()
+        threading.Thread(target=self.loop.run_forever, daemon=True).start()
         self.setup_ui()
         self.bt_handler.on_message = self.receive_message
         self.bt_handler.on_typing = self.update_typing_status
@@ -77,7 +79,8 @@ class BluetoothChatGUI:
 
     def refresh_devices(self):
         self.device_listbox.delete(0, tk.END)
-        devices = self.loop.run_until_complete(self.bt_handler.discover_devices())
+        future = asyncio.run_coroutine_threadsafe(self.bt_handler.discover_devices(), self.loop)
+        devices = future.result()  # This will block, but the event loop is running in another thread
         for name, addr in devices:
             self.device_listbox.insert(tk.END, f"{name} ({addr})")
 
